@@ -2,35 +2,78 @@ import rclpy
 from rclpy.node import Node
 import casadi
 from std_msgs.msg import String
+from px4_msgs.msg import VehicleOdometry, ActuatorMotors, OffboardControlMode, VehicleThrustSetpoint, VehicleTorqueSetpoint
+from rclpy.qos import qos_profile_sensor_data
+import numpy as np
+from scipy.spatial.transform import Rotation
 
+from solver import M
 
 class MPC(Node):
 
     def __init__(self):
         super().__init__('mpc')
-        self.solver = casadi.Function.load("quadrotor_nlp.casadi")
-        self.publisher_ = self.create_publisher(String, 'topic', 10)
-        self.timer = self.create_timer(0.25, self.timer_callback)
-        self.i = 0
+        self.control_publisher_ = self.create_publisher(String, 'topic', 10)
+        self.offboard_control_mode_publisher_ = self.create_publisher(OffboardControlMode, "/fmu/in/offboard_control_mode", 10)
+        self.motor_publisher_ = self.create_publisher(ActuatorMotors, "/fmu/in/actuator_motors", 10)
+
+        self.odometry_subscriber_ = self.create_subscription(
+            VehicleOdometry,
+            "/fmu/out/vehicle_odometry",
+            self.odometry_callback, qos_profile_sensor_data
+        )
+
+        self.timer = self.create_timer(0.1, self.timer_callback)
+        self.state = np.zeros(12)
 
     def timer_callback(self):
-        msg = String()
-        msg.data = 'Hello World: %d' % self.i
-        self.publisher_.publish(msg)
-        self.get_logger().info('Publishing: "%s"' % msg.data)
-        self.i += 1
+        hover_thrust = 1.84*9.81/4
+        self.publish_offboard_control_mode()
+        self.publish_motor_thrust(M(self.state)) # 0.726 ish to hover
+
+    def odometry_callback(self, odometry_msg):
+        rot = Rotation.from_quat([odometry_msg.q[1], odometry_msg.q[2],odometry_msg.q[3], odometry_msg.q[0]])
+        self.state[0:3] = odometry_msg.position
+        self.state[3:6] = rot.as_euler("xyz",degrees=False)
+        self.state[6:9] = odometry_msg.velocity
+        self.state[9:] = odometry_msg.angular_velocity
+
+    def publish_offboard_control_mode(self):
+        msg = OffboardControlMode()
+        msg.position = False
+        msg.velocity = False
+        msg.acceleration = False
+        msg.attitude = False
+        msg.body_rate = False
+        msg.direct_actuator = True
+        msg.timestamp = int(self.get_clock().now().nanoseconds / 1000)
+        self.offboard_control_mode_publisher_.publish(msg)
+    
+    def publish_motor_thrust(self, thrusts):
+        msg = ActuatorMotors()
+
+        thrusts = np.array(thrusts,np.float32)
+        motor_constant = 8.54858e-06
+        motor_velocity = np.sqrt(thrusts/motor_constant)
+        motor_inputs = motor_velocity / 1000
+        motor_inputs = np.pad(motor_inputs, (0,8))
+
+        msg.control = motor_inputs
+        msg.timestamp = int(self.get_clock().now().nanoseconds / 1000)
+        self.motor_publisher_.publish(msg)
+
+    def publish_thrust_torque(self, inputs):
+        thrust_msg = VehicleThrustSetpoint()
+        torque_msg = VehicleTorqueSetpoint()
 
 
 def main(args=None):
     rclpy.init(args=args)
 
-    MPC = MPC()
+    mpc = MPC()
 
-    rclpy.spin(MPC)
+    rclpy.spin(mpc)
 
-    # Destroy the node explicitly
-    # (optional - otherwise it will be done automatically
-    # when the garbage collector destroys the node object)
     MPC.destroy_node()
     rclpy.shutdown()
 
