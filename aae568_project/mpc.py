@@ -7,8 +7,6 @@ from rclpy.qos import qos_profile_sensor_data
 import numpy as np
 from scipy.spatial.transform import Rotation
 
-from solver import M
-
 class MPC(Node):
 
     def __init__(self):
@@ -25,11 +23,14 @@ class MPC(Node):
 
         self.timer = self.create_timer(0.1, self.timer_callback)
         self.state = np.zeros(12)
+        self.target = [0,0,3,0,0,0,0,0,0,0,0,0]
+        self.nlp_solver = casadi.Function.load("quadrotor_nlp.casadi")
 
     def timer_callback(self):
         hover_thrust = 1.84*9.81/4
         self.publish_offboard_control_mode()
-        self.publish_motor_thrust(M(self.state)) # 0.726 ish to hover
+        optimal_input = self.nlp_solver(self.target - self.state).elements()
+        self.publish_motor_thrust(optimal_input) # 0.726 ish to hover
 
     def odometry_callback(self, odometry_msg):
         rot = Rotation.from_quat([odometry_msg.q[1], odometry_msg.q[2],odometry_msg.q[3], odometry_msg.q[0]])
@@ -54,7 +55,7 @@ class MPC(Node):
 
         thrusts = np.array(thrusts,np.float32)
         motor_constant = 8.54858e-06
-        motor_velocity = np.sqrt(thrusts/motor_constant)
+        motor_velocity = np.sqrt(abs(thrusts/motor_constant))
         motor_inputs = motor_velocity / 1000
         motor_inputs = np.pad(motor_inputs, (0,8))
 
