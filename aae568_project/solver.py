@@ -4,8 +4,8 @@ from utils import plot
 
 opti = Opti()
 
-dt = 0.1 # time between steps in seconds
-N = 10 # number of control intervals
+dt = 0.5 # time between steps in seconds
+N = 5 # number of control intervals
 sim_time = 10
 
 # Constants
@@ -54,7 +54,7 @@ for k in range(N):
    x_next = X[:,k] + dt/6*(k1+2*k2+2*k3+k4) 
    opti.subject_to(X[:,k+1]==x_next)
 
-opti.subject_to(opti.bounded(0,U,20))
+opti.subject_to(opti.bounded(0,U,10))
 opti.subject_to(X[:,0] == P[0:12])
 
 opts = {
@@ -62,14 +62,14 @@ opts = {
     "error_on_fail": 1,
     "ipopt": {
         "print_level": 1,
-        # "acceptable_tol": 1e-8,
-        # 'acceptable_obj_change_tol': 1e-6
+        "acceptable_tol": 1e-6,
+        'acceptable_obj_change_tol': 1e-6
     }
 }
 
 opti.solver('ipopt', opts)
 
-M = opti.to_function('M',[P],[U[:,0]],['p'],['u_opt'])
+M = opti.to_function('M',[P],[X[:,1]],['p'],['u_opt'])
 
 # M.generate('codegen_demo',{"main": True})
 
@@ -78,30 +78,33 @@ X_log = []
 U_log = []
 
 x0 = DM([7,2,-4,0,0,0,0,0,0,0,0,0])
-x = x0
 
-mpc_iter = 0
+gotopoint = M(x0)
 
-while ((norm_2(x[0:3]) > 0.1) and (mpc_iter*dt) < sim_time):
-    u = M(x)
+# x = x0
 
-    U_log.append(u)
-    X_log.append(x.elements())
+# mpc_iter = 0
 
-    # Runge-Kutta 4 integration
-    k1 = f(x,         u)
-    k2 = f(x+dt/2*k1, u)
-    k3 = f(x+dt/2*k2, u)
-    k4 = f(x+dt*k3,   u)
-    x = (x + dt/6*(k1+2*k2+2*k3+k4))
+# while ((norm_2(x[0:3]) > 0.1) and (mpc_iter*dt) < sim_time):
+#     u = M(x)
+
+#     U_log.append(u)
+#     X_log.append(x.elements())
+
+#     # Runge-Kutta 4 integration
+#     k1 = f(x,         u)
+#     k2 = f(x+dt/2*k1, u)
+#     k3 = f(x+dt/2*k2, u)
+#     k4 = f(x+dt*k3,   u)
+#     x = (x + dt/6*(k1+2*k2+2*k3+k4))
     
-    mpc_iter+=1
+#     mpc_iter+=1
 
-t_history = np.linspace(0, dt*mpc_iter, mpc_iter)
-x_history = np.array(X_log)
-u_history = np.array(U_log)
+# t_history = np.linspace(0, dt*mpc_iter, mpc_iter)
+# x_history = np.array(X_log)
+# u_history = np.array(U_log)
 
-plot(x_history, u_history, t_history)
+# plot(x_history, u_history, t_history)
 
 M.save('quadrotor_nlp.casadi')
 # M = Function.load('quadrotor_nlp.casadi')
