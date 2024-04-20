@@ -35,13 +35,16 @@ def f(x, u):
     tau_theta = l/sqrt(2)*(u[0]+u[2]-u[1]-u[3])
     tau_psi = c_tau*(u[0]+u[1]-u[2]-u[3])
 
-    x_dot = vertcat(v,w,
-        -1/m*(cos(e[0])*sin(e[1])*cos(e[2]) + sin(e[0])*sin(e[2]))*f_T, # - beta[0]/m*v[0]
-        -1/m*(cos(e[0])*sin(e[1])*sin(e[2]) - sin(e[0])*cos(e[2]))*f_T, # - beta[1]/m*v[1]
+    x_dot = vertcat(v,
+        w[0] + w[1]*tan(e[1])*sin(e[0]) + w[2]*tan(e[1])*cos(e[0]),
+        w[1]*cos(e[0]) - w[2]*sin(e[0]),
+        w[1]*sin(e[0])/cos(e[1]) + w[2]*cos(e[0])/cos(e[1]),
+        -1/m*(sin(e[0])*sin(e[2]) - cos(e[0])*sin(e[1])*cos(e[2]))*f_T, # - beta[0]/m*v[0]
+        -1/m*(-sin(e[0])*cos(e[2]) + cos(e[0])*sin(e[1])*sin(e[2]))*f_T, # - beta[1]/m*v[1]
         -1/m*cos(e[0])*cos(e[1])*f_T + g, # - beta[2]/m*v[2]
-        -(I[2]-I[1])/I[0]*w[1]*w[2] + tau_phi/I[0],
-        -(I[0]-I[2])/I[1]*w[0]*w[2] + tau_theta/I[1],
-        -(I[1]-I[0])/I[2]*w[0]*w[1] + tau_psi/I[2]
+        tau_phi/I[0] - (I[2]-I[1])/I[0]*w[1]*w[2],
+        tau_theta/I[1] - (I[0]-I[2])/I[1]*w[0]*w[2],
+        tau_psi/I[2] - (I[1]-I[0])/I[2]*w[0]*w[1]
     )
 
     return x_dot
@@ -57,7 +60,8 @@ for k in range(N):
 
 opti.subject_to(opti.bounded(0.193,U,8.5))
 opti.subject_to(X[:,0] == X0)
-opti.subject_to(opti.bounded(-1.22,X[3:5,:],1.22))
+# opti.subject_to(opti.bounded(-0.52,X[3:5,:],0.52))
+# opti.subject_to(opti.bounded(0,X[5,:],0))
 opti.subject_to(opti.bounded(-100, X[2,:], 0))
 
 opts = {
@@ -65,13 +69,14 @@ opts = {
     "error_on_fail": 1,
     "ipopt": {
         "print_level": 1,
-        # "acceptable_tol": 1e-6,
-        # 'acceptable_obj_change_tol': 1e-6
+        "acceptable_tol": 1e-3,
+        'acceptable_obj_change_tol': 1e-3,
+        'max_iter': 100000
     }
 }
 
 opti.solver('ipopt', opts)
-# opti.solver('sqpmethod',dict(qpsol='ipopt'))
+# opti.solver('sqpmethod',dict(qpsol='qpoases'))
 
 M = opti.to_function('M',[X0, red_pos],[U[:,0], X[:,1]],['X0', 'red_pos'],['u_opt', 'x_next'])
 
@@ -81,14 +86,14 @@ M = opti.to_function('M',[X0, red_pos],[U[:,0], X[:,1]],['X0', 'red_pos'],['u_op
 X_log = []
 U_log = []
 
-x0 = DM([7,2,0,0,0,0,0,0,0,0,0,0])
-target = DM([7,2,-10])
+x0 = DM([0,0,0,0,0,0,0,0,0,0,0,0])
+target = DM([0,10,-10])
 
 x = x0
 
 mpc_iter = 0
 
-while ((norm_2(x[0:3]) > 0.1) and (mpc_iter*dt) < sim_time):
+while ((mpc_iter*dt) < sim_time):
     [u,x_next] = M(x, target)
 
     U_log.append(u)
