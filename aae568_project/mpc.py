@@ -26,7 +26,7 @@ class MPC(Node):
         self.timer = self.create_timer(0.1, self.timer_callback)
         self.state = np.zeros(12)
         self.target = [0,0,-3,0,0,0,0,0,0,0,0,0]
-        self.nlp_solver = casadi.Function.load("aae568_project/quad_solver.casadi")
+        self.nlp_solver = casadi.Function.load("quad_solver.casadi")
 
     def timer_callback(self):
         hover_thrust = 2.06430769*9.8/4
