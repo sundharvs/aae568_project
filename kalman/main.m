@@ -43,7 +43,8 @@ for k = 2:1:N+1 % run through simulation
     z = h(red, blue) + [randn randn randn]' .* [1e-1 1e-2 1e-2]' .* 1;
     
     % estimate red team position
-    [xhat, P] = ekf(z, xhat, P, blue, A); % EKF
+    [xhat, P, xhat_fwd, t_fwd] = ekf(z, xhat, P, blue, A); % EKF
+    t_predict = t_fwd + k * ts;
 
     % save data
     xhat_hist(:, k) = xhat;
@@ -62,28 +63,31 @@ end
 % title('Trajectory');
 % legend('True', 'Estimated', 'location', 'best');
 
-% figure();
-% subplot(3, 1, 1);
-% plot(t, red_hist(1, :), '-', 'LineWidth', 2); hold on;
-% plot(t, xhat_hist(1, :), '--', 'LineWidth', 2); grid on;
-% xlabel('Time [s]');
-% ylabel('X [m]');
-% title('X Position');
-% legend('True', 'Estimated', 'location', 'best');
-% subplot(3, 1, 2);
-% plot(t, red_hist(4, :), '-', 'LineWidth', 2); hold on;
-% plot(t, xhat_hist(4, :), '--', 'LineWidth', 2); grid on;
-% xlabel('Time [s]');
-% ylabel('Y [m]');
-% title('Y Position');
-% legend('True', 'Estimated', 'location', 'best');
-% subplot(3, 1, 3);
-% plot(t, -red_hist(7, :), '-', 'LineWidth', 2); hold on;
-% plot(t, -xhat_hist(7, :), '--', 'LineWidth', 2); grid on;
-% xlabel('Time [s]');
-% ylabel('-Z [m]');
-% title('-Z Position');
-% legend('True', 'Estimated', 'location', 'best');
+figure();
+subplot(3, 1, 1);
+plot(t, red_hist(1, :), '-', 'LineWidth', 2); hold on;
+plot(t, xhat_hist(1, :), '--', 'LineWidth', 2);
+plot(t_predict, xhat_fwd(1, :), ':', 'LineWidth', 2); grid on;
+xlabel('Time [s]');
+ylabel('X [m]');
+title('X Position');
+legend('True', 'Estimated', 'location', 'best');
+subplot(3, 1, 2);
+plot(t, red_hist(4, :), '-', 'LineWidth', 2); hold on;
+plot(t, xhat_hist(4, :), '--', 'LineWidth', 2);
+plot(t_predict, xhat_fwd(4, :), ':', 'LineWidth', 2); grid on;
+xlabel('Time [s]');
+ylabel('Y [m]');
+title('Y Position');
+legend('True', 'Estimated', 'location', 'best');
+subplot(3, 1, 3);
+plot(t, -red_hist(7, :), '-', 'LineWidth', 2); hold on;
+plot(t, -xhat_hist(7, :), '--', 'LineWidth', 2);
+plot(t_predict, -xhat_fwd(7, :), ':', 'LineWidth', 2); grid on;
+xlabel('Time [s]');
+ylabel('-Z [m]');
+title('-Z Position');
+legend('True', 'Estimated', 'location', 'best');
 
 % figure();
 % subplot(3, 1, 1);

@@ -1,4 +1,4 @@
-function [xhat, P] = ekf(z, xhat_curr, P_curr, blue, A)
+function [xhat, P, xhat_fwd, t_fwd] = ekf(z, xhat_curr, P_curr, blue, A)
     % % check if in frame
     % if sum(isnan(z))
     %     P = diag([1 1 1 1 1 1 1 1 1] .* 1e-2); % init
@@ -12,6 +12,7 @@ function [xhat, P] = ekf(z, xhat_curr, P_curr, blue, A)
     % end
 
     % Filter Properties
+    t_fwd = 0.75; % look ahead
     ts = 0.01;
     Qj = [(1/5)*ts^5, (1/4)*ts^4, (1/3)*ts^3;
           (1/4)*ts^4, (1/3)*ts^3, (1/2)*ts^2;
@@ -39,4 +40,13 @@ function [xhat, P] = ekf(z, xhat_curr, P_curr, blue, A)
     % Update
     xhat = x_mdl + K * y;
     P = (eye(9) - K * H) * P_mdl;
+
+    % foward trajectory
+    N = t_fwd / ts;
+    xhat_fwd = zeros(size(xhat, 1), N + 1);
+    xhat_fwd(:, 1) = xhat;
+    for k = 2:1:N+1
+        xhat_fwd(:, k) = A * xhat_fwd(:, k - 1);
+    end
+    t_fwd = (0:1:N) .* ts;
 end
