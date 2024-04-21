@@ -1,4 +1,16 @@
 function [xhat, P] = ekf(z, xhat_curr, P_curr, blue, A)
+    % % check if in frame
+    % if sum(isnan(z))
+    %     P = diag([1 1 1 1 1 1 1 1 1] .* 1e-2); % init
+    %     xhat = [1 1 1 1 1 1 1 1 1]' .* NaN; % don't track
+    %     return;
+    % end
+    % 
+    % % check if blue has reacquired red
+    % if sum(isnan(xhat_curr))
+    %     xb = 
+    % end
+
     % Filter Properties
     ts = 0.01;
     Qj = [(1/5)*ts^5, (1/4)*ts^4, (1/3)*ts^3;
@@ -17,7 +29,7 @@ function [xhat, P] = ekf(z, xhat_curr, P_curr, blue, A)
 
     % Residuals and Gains
     y = z - h(x_mdl, blue);
-    blue(4:7) = eul2quat(blue(4:6)');
+    blue(4:7) = eul2quat(-blue(4:6)');
     H = H_fcn(blue(1), blue(2), blue(3), ...
               blue(4), blue(5), blue(6), blue(7), ...
               x_mdl(1), x_mdl(4), x_mdl(7));

@@ -1,5 +1,6 @@
 function z = h(red, blue)
-    blue(4:7) = eul2quat(blue(4:6)');
+    blue(4:7) = eul2quat(-blue(4:6)');
+    epsilon = 0.1; % 10 cm
 
     alpha = 333.507935;
     beta = 334.712952;
@@ -14,5 +15,10 @@ function z = h(red, blue)
     u = -(Rb(2) / Rb(1)) * alpha + u0;
     v = -(Rb(3) / Rb(1)) * beta + v0;
 
+    % if Rb(1) < epsilon
+    %     z = [NaN; NaN; NaN];
+    % else
+    %     z = [r; u; v];
+    % end
     z = [r; u; v];
 end
